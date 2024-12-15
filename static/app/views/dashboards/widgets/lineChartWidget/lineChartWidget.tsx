@@ -15,12 +15,12 @@ import {
 import {MISSING_DATA_MESSAGE, X_GUTTER, Y_GUTTER} from '../common/settings';
 import type {StateProps} from '../common/types';
 
-interface Props
+export interface LineChartWidgetProps
   extends StateProps,
     Omit<WidgetFrameProps, 'children'>,
     Partial<LineChartWidgetVisualizationProps> {}
 
-export function LineChartWidget(props: Props) {
+export function LineChartWidget(props: LineChartWidgetProps) {
   const {timeseries} = props;
 
   if (props.isLoading) {
@@ -47,6 +47,11 @@ export function LineChartWidget(props: Props) {
       title={props.title}
       description={props.description}
       actions={props.actions}
+      actionsDisabled={props.actionsDisabled}
+      actionsMessage={props.actionsMessage}
+      badgeProps={props.badgeProps}
+      onFullScreenViewClick={props.onFullScreenViewClick}
+      warnings={props.warnings}
       error={error}
       onRetry={props.onRetry}
     >
@@ -54,7 +59,7 @@ export function LineChartWidget(props: Props) {
         <LineChartWrapper>
           <LineChartWidgetVisualization
             timeseries={timeseries}
-            utc={props.utc}
+            releases={props.releases}
             meta={props.meta}
             dataCompletenessDelay={props.dataCompletenessDelay}
           />
