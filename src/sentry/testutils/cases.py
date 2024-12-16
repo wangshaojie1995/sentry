@@ -90,11 +90,7 @@ from sentry.models.authprovider import AuthProvider as AuthProviderModel
 from sentry.models.commit import Commit
 from sentry.models.commitauthor import CommitAuthor
 from sentry.models.dashboard import Dashboard
-from sentry.models.dashboard_widget import (
-    DashboardWidget,
-    DashboardWidgetDisplayTypes,
-    DashboardWidgetQuery,
-)
+from sentry.models.dashboard_widget import DashboardWidget, DashboardWidgetDisplayTypes
 from sentry.models.deletedorganization import DeletedOrganization
 from sentry.models.deploy import Deploy
 from sentry.models.environment import Environment
@@ -1021,32 +1017,8 @@ class PermissionTestCase(TestCase):
     def assert_manager_can_access(self, path, **kwargs):
         return self.assert_role_can_access(path, "manager", **kwargs)
 
-    def assert_teamless_member_can_access(self, path, **kwargs):
-        user = self.create_user(is_superuser=False)
-        self.create_member(user=user, organization=self.organization, role="member", teams=[])
-
-        self.assert_can_access(user, path, **kwargs)
-
     def assert_member_cannot_access(self, path, **kwargs):
         return self.assert_role_cannot_access(path, "member", **kwargs)
-
-    def assert_manager_cannot_access(self, path, **kwargs):
-        return self.assert_role_cannot_access(path, "manager", **kwargs)
-
-    def assert_teamless_member_cannot_access(self, path, **kwargs):
-        user = self.create_user(is_superuser=False)
-        self.create_member(user=user, organization=self.organization, role="member", teams=[])
-
-        self.assert_cannot_access(user, path, **kwargs)
-
-    def assert_team_admin_can_access(self, path, **kwargs):
-        return self.assert_role_can_access(path, "admin", **kwargs)
-
-    def assert_teamless_admin_can_access(self, path, **kwargs):
-        user = self.create_user(is_superuser=False)
-        self.create_member(user=user, organization=self.organization, role="admin", teams=[])
-
-        self.assert_can_access(user, path, **kwargs)
 
     def assert_team_admin_cannot_access(self, path, **kwargs):
         return self.assert_role_cannot_access(path, "admin", **kwargs)
@@ -1057,18 +1029,8 @@ class PermissionTestCase(TestCase):
 
         self.assert_cannot_access(user, path, **kwargs)
 
-    def assert_team_owner_can_access(self, path, **kwargs):
-        return self.assert_role_can_access(path, "owner", **kwargs)
-
     def assert_owner_can_access(self, path, **kwargs):
         return self.assert_role_can_access(path, "owner", **kwargs)
-
-    def assert_owner_cannot_access(self, path, **kwargs):
-        return self.assert_role_cannot_access(path, "owner", **kwargs)
-
-    def assert_non_member_cannot_access(self, path, **kwargs):
-        user = self.create_user(is_superuser=False)
-        self.assert_cannot_access(user, path, **kwargs)
 
     def assert_role_can_access(self, path, role, **kwargs):
         user = self.create_user(is_superuser=False)
@@ -2671,32 +2633,6 @@ class OrganizationDashboardWidgetTestCase(APITestCase):
     def do_request(self, method, url, data=None):
         func = getattr(self.client, method)
         return func(url, data=data)
-
-    def assert_widget_queries(self, widget_id, data):
-        result_queries = DashboardWidgetQuery.objects.filter(widget_id=widget_id).order_by("order")
-        for ds, expected_ds in zip(result_queries, data):
-            assert ds.name == expected_ds["name"]
-            assert ds.fields == expected_ds["fields"]
-            assert ds.conditions == expected_ds["conditions"]
-
-    def assert_widget(self, widget, order, title, display_type, queries=None):
-        assert widget.order == order
-        assert widget.display_type == display_type
-        assert widget.title == title
-
-        if not queries:
-            return
-
-        self.assert_widget_queries(widget.id, queries)
-
-    def assert_widget_data(self, data, title, display_type, queries=None):
-        assert data["displayType"] == display_type
-        assert data["title"] == title
-
-        if not queries:
-            return
-
-        self.assert_widget_queries(data["id"], queries)
 
     def assert_serialized_widget_query(self, data, widget_data_source):
         if "id" in data:
