@@ -27,14 +27,13 @@ from django.contrib.auth import login
 from django.contrib.auth.models import AnonymousUser
 from django.core import signing
 from django.core.cache import cache
-from django.db import DEFAULT_DB_ALIAS, connection, connections
+from django.db import connection, connections
 from django.db.migrations.executor import MigrationExecutor
 from django.http import HttpRequest
 from django.test import RequestFactory
 from django.test import TestCase as DjangoTestCase
 from django.test import TransactionTestCase as DjangoTransactionTestCase
 from django.test import override_settings
-from django.test.utils import CaptureQueriesContext
 from django.urls import resolve, reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -164,7 +163,7 @@ from ..snuba.metrics.naming_layer.mri import SessionMRI, TransactionMRI, parse_m
 from .asserts import assert_status_code
 from .factories import Factories
 from .fixtures import Fixtures
-from .helpers import AuthProvider, Feature, TaskRunner, override_options, parse_queries
+from .helpers import AuthProvider, Feature, TaskRunner, override_options
 from .silo import assume_test_silo_mode
 from .skips import requires_snuba
 
@@ -422,70 +421,12 @@ class BaseTestCase(Fixtures):
         assert deleted_log.date_created == original_object.date_added
         assert deleted_log.date_deleted >= deleted_log.date_created
 
-    def assertWriteQueries(self, queries, debug=False, *args, **kwargs):
-        func = kwargs.pop("func", None)
-        using = kwargs.pop("using", DEFAULT_DB_ALIAS)
-        conn = connections[using]
-
-        context = _AssertQueriesContext(self, queries, debug, conn)
-        if func is None:
-            return context
-
-        with context:
-            func(*args, **kwargs)
-
     def get_mock_uuid(self):
         class uuid:
             hex = "abc123"
             bytes = b"\x00\x01\x02"
 
         return uuid
-
-
-class _AssertQueriesContext(CaptureQueriesContext):
-    def __init__(self, test_case, queries, debug, connection):
-        self.test_case = test_case
-        self.queries = queries
-        self.debug = debug
-        super().__init__(connection)
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        super().__exit__(exc_type, exc_value, traceback)
-        if exc_type is not None:
-            return
-
-        parsed_queries = parse_queries(self.captured_queries)
-
-        if self.debug:
-            import pprint
-
-            pprint.pprint("====================== Raw Queries ======================")
-            pprint.pprint(self.captured_queries)
-            pprint.pprint("====================== Table writes ======================")
-            pprint.pprint(parsed_queries)
-
-        for table, num in parsed_queries.items():
-            expected = self.queries.get(table, 0)
-            if expected == 0:
-                import pprint
-
-                pprint.pprint(
-                    "WARNING: no query against %s emitted, add debug=True to see all the queries"
-                    % (table)
-                )
-            else:
-                self.test_case.assertTrue(
-                    num == expected,
-                    "%d write queries expected on `%s`, got %d, add debug=True to see all the queries"
-                    % (expected, table, num),
-                )
-
-        for table, num in self.queries.items():
-            executed = parsed_queries.get(table, None)
-            self.test_case.assertFalse(
-                executed is None,
-                "no query against %s emitted, add debug=True to see all the queries" % (table),
-            )
 
 
 @override_settings(ROOT_URLCONF="sentry.web.urls")
@@ -1210,20 +1151,6 @@ class SnubaTestCase(BaseTestCase):
     def initialize(self, reset_snuba, call_snuba):
         self.call_snuba = call_snuba
 
-    @contextmanager
-    def disable_snuba_query_cache(self):
-        self.snuba_update_config({"use_readthrough_query_cache": 0, "use_cache": 0})
-        yield
-        self.snuba_update_config({"use_readthrough_query_cache": None, "use_cache": None})
-
-    @classmethod
-    def snuba_get_config(cls):
-        return _snuba_pool.request("GET", "/config.json").data
-
-    @classmethod
-    def snuba_update_config(cls, config_vals):
-        return _snuba_pool.request("POST", "/config.json", body=json.dumps(config_vals))
-
     def create_project(self, **kwargs) -> Project:
         if "flags" not in kwargs:
             # We insert events directly into snuba in tests, so we need to set has_transactions to True so the
@@ -1322,16 +1249,6 @@ class SnubaTestCase(BaseTestCase):
                 body=json.dumps(data),
                 headers={},
             ).status
-            == 200
-        )
-
-    def store_outcome(self, group):
-        data = [self.__wrap_group(group)]
-        assert (
-            requests.post(
-                settings.SENTRY_SNUBA + "/tests/entities/outcomes/insert",
-                data=json.dumps(data),
-            ).status_code
             == 200
         )
 
@@ -2899,50 +2816,6 @@ class SlackActivityNotificationTest(ActivityTestCase):
         ) as self.mock_post:
             yield
 
-    def assert_performance_issue_attachments(
-        self, attachment, project_slug, referrer, alert_type="workflow"
-    ):
-        assert "N+1 Query" in attachment["text"]
-        assert (
-            "db - SELECT `books_author`.`id`, `books_author`.`name` FROM `books_author` WHERE `books_author`.`id` = %s LIMIT 21"
-            in attachment["blocks"][1]["text"]["text"]
-        )
-        title_link = attachment["blocks"][0]["text"]["text"][13:][1:-1]
-        notification_uuid = self.get_notification_uuid(title_link)
-        assert (
-            attachment["blocks"][-2]["elements"][0]["text"]
-            == f"{project_slug} | production | <http://testserver/settings/account/notifications/{alert_type}/?referrer={referrer}&notification_uuid={notification_uuid}|Notification Settings>"
-        )
-
-    def assert_performance_issue_blocks(
-        self,
-        blocks,
-        org: Organization,
-        project_slug: str,
-        group,
-        referrer,
-        alert_type: FineTuningAPIKey = FineTuningAPIKey.WORKFLOW,
-        issue_link_extra_params=None,
-    ):
-        notification_uuid = self.get_notification_uuid(blocks[1]["text"]["text"])
-        issue_link = f"http://testserver/organizations/{org.slug}/issues/{group.id}/?referrer={referrer}&notification_uuid={notification_uuid}"
-        if issue_link_extra_params is not None:
-            issue_link += issue_link_extra_params
-        assert (
-            blocks[1]["text"]["text"]
-            == f":large_blue_circle: :chart_with_upwards_trend: <{issue_link}|*N+1 Query*>"
-        )
-        assert (
-            blocks[2]["text"]["text"]
-            == "```db - SELECT `books_author`.`id`, `books_author`.`name` FROM `books_author` WHERE `books_author`.`id` = %s LIMIT 21```"
-        )
-        assert blocks[3]["elements"][0]["text"] == "State: *New*   First Seen: *10\xa0minutes ago*"
-        optional_org_id = f"&organizationId={org.id}" if alert_page_needs_org_id(alert_type) else ""
-        assert (
-            blocks[4]["elements"][0]["text"]
-            == f"{project_slug} | production | <http://testserver/settings/account/notifications/{alert_type}/?referrer={referrer}-user&notification_uuid={notification_uuid}{optional_org_id}|Notification Settings>"
-        )
-
     def assert_performance_issue_blocks_with_culprit_blocks(
         self,
         blocks,
@@ -2971,17 +2844,6 @@ class SlackActivityNotificationTest(ActivityTestCase):
         assert (
             blocks[5]["elements"][0]["text"]
             == f"{project_slug} | production | <http://testserver/settings/account/notifications/{alert_type}/?referrer={referrer}-user&notification_uuid={notification_uuid}{optional_org_id}|Notification Settings>"
-        )
-
-    def assert_generic_issue_attachments(
-        self, attachment, project_slug, referrer, alert_type="workflow"
-    ):
-        assert attachment["title"] == TEST_ISSUE_OCCURRENCE.issue_title
-        assert attachment["text"] == TEST_ISSUE_OCCURRENCE.evidence_display[0].value
-        notification_uuid = self.get_notification_uuid(attachment["title_link"])
-        assert (
-            attachment["footer"]
-            == f"{project_slug} | <http://testserver/settings/account/notifications/{alert_type}/?referrer={referrer}&notification_uuid={notification_uuid}|Notification Settings>"
         )
 
     def assert_generic_issue_blocks(
