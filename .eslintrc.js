@@ -789,7 +789,6 @@ module.exports = {
     browser: true,
     es6: true,
     jest: true,
-    jquery: true, // hard-loaded into vendor.js
   },
 
   globals: {
@@ -802,7 +801,7 @@ module.exports = {
 
   settings: {
     react: {
-      version: '17.0.2', // React version, can not `detect` because of getsentry
+      version: '18.2.0', // React version, can not `detect` because of getsentry
     },
     'import/parsers': {
       '@typescript-eslint/parser': ['.ts', '.tsx'],
