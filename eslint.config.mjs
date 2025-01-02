@@ -6,10 +6,10 @@
  * `npx eslint --inspect-config`
  */
 import * as emotion from '@emotion/eslint-plugin';
+import prettier from 'eslint-config-prettier';
 import importPlugin from 'eslint-plugin-import';
 import jest from 'eslint-plugin-jest';
 import jestDom from 'eslint-plugin-jest-dom';
-import prettier from 'eslint-plugin-prettier/recommended';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import sentry from 'eslint-plugin-sentry';
@@ -210,12 +210,6 @@ const baseRules = {
 };
 
 const reactRules = {
-  /**
-   * Custom
-   */
-  // highlights literals in JSX components w/o translation tags
-  'getsentry/jsx-needs-il8n': ['off'],
-
   'typescript-sort-keys/interface': [
     'error',
     'asc',
@@ -353,52 +347,6 @@ const appRules = {
     },
   ],
 
-  /**
-   * Better import sorting
-   */
-  'sort-imports': 'off',
-  'simple-import-sort/imports': [
-    'error',
-    {
-      groups: [
-        // Side effect imports.
-        ['^\\u0000'],
-
-        // Node.js builtins.
-        [`^(${builtinModules.join('|')})(/|$)`],
-
-        // Packages. `react` related packages come first.
-        ['^react', '^@?\\w'],
-
-        // Test should be separate from the app
-        ['^(sentry-test|getsentry-test)(/.*|$)'],
-
-        // Internal packages.
-        ['^(sentry-locale|sentry-images)(/.*|$)'],
-
-        ['^(getsentry-images)(/.*|$)'],
-
-        ['^(app|sentry)(/.*|$)'],
-
-        // Getsentry packages.
-        ['^(admin|getsentry)(/.*|$)'],
-
-        // Style imports.
-        ['^.+\\.less$'],
-
-        // Parent imports. Put `..` last.
-        ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
-
-        // Other relative imports. Put same-folder imports and `.` last.
-        ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
-      ],
-    },
-  ],
-
-  'sentry/no-digits-in-tn': ['error'],
-
-  'sentry/no-dynamic-translations': ['error'],
-
   // https://github.com/xojs/eslint-config-xo-typescript/blob/9791a067d6a119a21a4db72c02f1da95e25ffbb6/index.js#L95
   '@typescript-eslint/no-restricted-types': [
     'error',
@@ -445,8 +393,6 @@ const appRules = {
 const strictRules = {
   // https://eslint.org/docs/rules/no-console
   'no-console': ['error'],
-
-  'sentry/no-styled-shortcut': ['error'],
 };
 
 // Used by both: `languageOptions` & `parserOptions`
@@ -510,9 +456,7 @@ export default typescript.config([
     // corresponding configuration object where the plugin is initially included
     plugins: {
       '@typescript-eslint': typescript.plugin,
-      'simple-import-sort': simpleImportSort,
       'typescript-sort-keys': typescriptSortKeys,
-      sentry,
     },
     settings: {
       react: {
@@ -752,6 +696,66 @@ export default typescript.config([
     },
   },
   {
+    name: 'import sort order',
+    plugins: {
+      'simple-import-sort': simpleImportSort,
+    },
+    rules: {
+      /**
+       * Better import sorting
+       */
+      'sort-imports': 'off',
+      'simple-import-sort/imports': [
+        'error',
+        {
+          groups: [
+            // Side effect imports.
+            ['^\\u0000'],
+
+            // Node.js builtins.
+            [`^(${builtinModules.join('|')})(/|$)`],
+
+            // Packages. `react` related packages come first.
+            ['^react', '^@?\\w'],
+
+            // Test should be separate from the app
+            ['^(sentry-test|getsentry-test)(/.*|$)'],
+
+            // Internal packages.
+            ['^(sentry-locale|sentry-images)(/.*|$)'],
+
+            ['^(getsentry-images)(/.*|$)'],
+
+            ['^(app|sentry)(/.*|$)'],
+
+            // Getsentry packages.
+            ['^(admin|getsentry)(/.*|$)'],
+
+            // Style imports.
+            ['^.+\\.less$'],
+
+            // Parent imports. Put `..` last.
+            ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
+
+            // Other relative imports. Put same-folder imports and `.` last.
+            ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
+          ],
+        },
+      ],
+    },
+  },
+  {
+    name: 'sentry',
+    plugins: {
+      sentry,
+    },
+    rules: {
+      'sentry/no-digits-in-tn': 'error',
+      'sentry/no-dynamic-translations': 'error',
+      'sentry/no-styled-shortcut': 'error',
+    },
+  },
+  {
     name: '@emotion',
     plugins: {
       '@emotion': emotion,
@@ -825,14 +829,6 @@ export default typescript.config([
     },
   },
   {
-    name: 'testing-library/react - tsx files',
-    files: ['**/*.spec.{tsx,jsx}', 'tests/js/**/*.{tsx,jsx}'],
-    ...testingLibrary.configs['flat/react'],
-    rules: {
-      'testing-library/no-node-access': 'warn', // TODO(ryan953): Fix the violations, then delete this line
-    },
-  },
-  {
     // We specify rules explicitly for the sdk-loader here so we do not have
     // eslint ignore comments included in the source file, which is consumed
     // by users.
@@ -843,7 +839,7 @@ export default typescript.config([
     },
   },
   {
-    name: 'prettier/recommended',
+    name: 'prettier',
     ...prettier,
   },
 ]);
