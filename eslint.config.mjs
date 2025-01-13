@@ -280,12 +280,10 @@ export default typescript.config([
       // https://github.com/eslint/eslint/blob/main/packages/js/src/configs/eslint-recommended.js
       ...eslint.configs.recommended.rules,
       'no-cond-assign': ['error', 'always'],
-      'no-async-promise-executor': 'off', // TODO(ryan953): Fix violations and delete this line
       'no-case-declarations': 'off', // TODO(ryan953): Fix violations and delete this line
       'no-constant-binary-expression': 'off', // TODO(ryan953): Fix violations and delete this line
       'no-dupe-class-members': 'off', // TODO(ryan953): Fix violations and delete this line
       'no-import-assign': 'off', // TODO(ryan953): Fix violations and delete this line
-      'no-loss-of-precision': 'off', // TODO(ryan953): Fix violations and delete this line
       'no-prototype-builtins': 'off', // TODO(ryan953): Fix violations and delete this line
       'no-redeclare': 'off', // TODO(ryan953): Fix violations and delete this line
       'no-self-assign': 'off', // TODO(ryan953): Fix violations and delete this line
@@ -632,6 +630,7 @@ export default typescript.config([
     name: 'files/sentry-test',
     files: ['**/*.spec.{ts,js,tsx,jsx}', 'tests/js/**/*.{ts,js,tsx,jsx}'],
     rules: {
+      'no-loss-of-precision': 'off', // Sometimes we have wild numbers hard-coded in tests
       'no-restricted-imports': [
         'error',
         {
@@ -645,6 +644,13 @@ export default typescript.config([
           ],
         },
       ],
+    },
+  },
+  {
+    name: 'files/sentry-stories',
+    files: ['**/*.stories.{tsx}'],
+    rules: {
+      'no-loss-of-precision': 'off', // Sometimes we have wild numbers hard-coded in stories
     },
   },
   {
