@@ -32,6 +32,10 @@ def register_temporary_features(manager: FeatureManager):
     # Features that don't use resource scoping #
     ############################################
 
+    # FLAGPOLE NOTE:
+    # You won't be able to control system feature flags with flagpole, as flagpole only handles
+    # organization or project scoped features. You would need to use an option instead.
+
     # Enables user registration.
     manager.add("auth:register", SystemFeature, FeatureHandlerStrategy.INTERNAL, default=True)
     # Enable creating organizations within sentry (if SENTRY_SINGLE_ORGANIZATION is not enabled).
@@ -535,6 +539,10 @@ def register_temporary_features(manager: FeatureManager):
     manager.add("organizations:eap-alerts-ui-uses-rpc", OrganizationFeature, FeatureHandlerStrategy.FLAGPOLE, api_expose=True)
     # Test flag for flagpole region checking
     manager.add("organizations:validate-region-test-flag", OrganizationFeature, FeatureHandlerStrategy.FLAGPOLE, api_expose=True)
+    # Enable our logs product (known internally as ourlogs) in UI and backend
+    manager.add("organizations:ourlogs-enabled", OrganizationFeature, FeatureHandlerStrategy.FLAGPOLE, api_expose=True)
+    # Enable our logs product to be ingested via Relay.
+    manager.add("organizations:ourlogs-ingestion", OrganizationFeature, FeatureHandlerStrategy.FLAGPOLE, api_expose=True)
 
     # NOTE: Don't add features down here! Add them to their specific group and sort
     #       them alphabetically! The order features are registered is not important.
