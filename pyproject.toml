@@ -118,7 +118,6 @@ ignore_missing_imports = true
 module = [
     "sentry.api.base",
     "sentry.api.bases.organization_events",
-    "sentry.api.endpoints.accept_organization_invite",
     "sentry.api.endpoints.codeowners",
     "sentry.api.endpoints.event_attachments",
     "sentry.api.endpoints.group_integration_details",
@@ -222,7 +221,6 @@ module = [
     "sentry.middleware.auth",
     "sentry.middleware.ratelimit",
     "sentry.middleware.superuser",
-    "sentry.monitors.consumers.monitor_consumer",
     "sentry.monitors.endpoints.base",
     "sentry.monitors.endpoints.organization_monitor_index",
     "sentry.net.http",
@@ -447,6 +445,7 @@ module = [
     "sentry.models.groupinbox",
     "sentry.models.groupsubscription",
     "sentry.models.options.*",
+    "sentry.monitors.consumers.monitor_consumer",
     "sentry.monkey.*",
     "sentry.nodestore.*",
     "sentry.nodestore.base",
